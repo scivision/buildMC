@@ -148,6 +148,10 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     build_dir = Path(params['build_dir'])
     source_dir = Path(params['source_dir'])
 
+    cmakelists = source_dir / 'CMakeLists.txt'
+    if not cmakelists.is_file():
+        raise FileNotFoundError(cmakelists)
+
     wopts: List[str]
     if compilers['CC'] == 'cl':
         wopts = ['-G', str(params['msvc_cmake']), '-A', 'x64']
@@ -211,6 +215,12 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     attempt to build with Meson + Ninja
     """
     build_dir = Path(params['build_dir'])
+    source_dir = Path(params['source_dir'])
+
+    meson_build = source_dir / 'meson.build'
+
+    if not meson_build.is_file():
+        raise FileNotFoundError(meson_build)
 
     build_ninja = build_dir / 'build.ninja'
 
@@ -222,7 +232,7 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     if kwargs.get('wipe') and build_ninja.is_file():
         meson_setup.append('--wipe')
 
-    meson_setup += [str(params['build_dir']), str(params['source_dir'])]
+    meson_setup += [str(params['build_dir']), str(source_dir)]
 
     if kwargs.get('wipe') or not build_ninja.is_file():
         ret = subprocess.run(meson_setup, env=os.environ.update(compilers))
