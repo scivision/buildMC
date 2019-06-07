@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/scivision/buildMC.svg?branch=master)](https://travis-ci.com/scivision/buildMC)
+
 # buildMC
 
 A pure Python program that makes building a large, complicated project using CMake or Meson just a single, simple command.
