@@ -13,7 +13,7 @@ A pure Python program that makes building a large, complicated project using CMa
 Prereqs:
 
 * Python &ge; 3.6
-* CMake &ge; 3.12 _or_ Meson+Ninja
+* CMake &ge; 3.14 _or_ Meson+Ninja
 
 ```sh
 pip install buildmc
