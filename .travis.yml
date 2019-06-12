@@ -38,3 +38,4 @@ install:
 
 script:
 - buildmc -s tests/src -test
+- pytest -v

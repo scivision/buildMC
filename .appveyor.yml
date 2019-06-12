@@ -25,3 +25,4 @@ install:
 
 test_script:
 - buildmc msvc -s tests/src -test
+- pytest -v
