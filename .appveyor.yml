@@ -15,7 +15,8 @@ build: off
 init:
 - cmd: set PATH=%MINGW_DIR%;%PATH%
 - cmd: set PATH=%PY_DIR%;%PY_DIR%\Scripts;%PATH%
-- cmd: choco upgrade cmake --pre
+- pip install cmakeutils
+- cmake_setup 3.14.5 -q
 
 install:
 - pip install -e .

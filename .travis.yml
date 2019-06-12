@@ -28,7 +28,11 @@ matrix:
 #    - choco install python3
 #    - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
 
-install: pip install -e .
+install:
+- pip install -e .
+- pip install cmakeutils
+- cmake_setup 3.14.5
+- export PATH="$HOME/.local/cmake/bin:$PATH"
 
 script:
 - buildmc -s tests/src -test
