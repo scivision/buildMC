@@ -8,14 +8,17 @@
 # buildMC
 
 A pure Python program that makes building a large, complicated project using CMake or Meson just a single, simple command.
-JSON is used to get status of the Meson or CMake build system for more robust and fast interaction.
+JSON from the build system API gives robust and fast build system status / interaction.
 
 ## Install
 
 Prereqs:
 
 * Python &ge; 3.6
-* CMake &ge; 3.14 _or_ Meson+Ninja
+* build system: any _one_ of:
+  * CMake &ge; 3.0 + GNU Make
+  * [Meson](https://www.mesonbuild.com) + Ninja
+* compilers necessary for the project code
 
 ```sh
 pip install buildmc
@@ -30,14 +33,6 @@ cd buildmc
 pip install -e .
 ```
 
-### CMake
-
-An easy way to upgrade to the latest CMake on Linux or Windows is via [CMakeUtils](https://github.com/scivision/cmake-utils):
-```sh
-pip install cmakeutils
-
-cmake_setup
-```
 
 ## Usage
 
@@ -60,6 +55,17 @@ buildmc intel
 buildmc clang
 ```
 
-Each command independently builds and runs the user-configured tests using CMake or Meson.
+Each command independently builds and runs the user-configured tests via the selected build system.
 When switching between Windows and Linux (using WSL from Windows) buildMC detects the OS switch and wipes the build cache and rebuilds as needed.
 
+
+## Notes
+
+### CMake
+
+An easy way to upgrade to the latest CMake on Linux or Windows is via [CMakeUtils](https://github.com/scivision/cmake-utils):
+```sh
+pip install cmakeutils
+
+cmake_setup
+```
