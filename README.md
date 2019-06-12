@@ -8,6 +8,7 @@
 # buildMC
 
 A pure Python program that makes building a large, complicated project using CMake or Meson just a single, simple command.
+JSON is used to get status of the Meson or CMake build system for more robust and fast interaction.
 
 ## Install
 
@@ -27,6 +28,15 @@ git clone https://github.com/scivision/buildmc
 cd buildmc
 
 pip install -e .
+```
+
+### CMake
+
+An easy way to upgrade to the latest CMake on Linux or Windows is via [CMakeUtils](https://github.com/scivision/cmake-utils):
+```sh
+pip install cmakeutils
+
+cmake_setup
 ```
 
 ## Usage
