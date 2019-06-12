@@ -11,6 +11,8 @@ python:
 - 3.7
 - 3.6
 
+env: CMAKE_VER=3.14.5
+
 matrix:
   include:
   - os: linux
@@ -31,8 +33,8 @@ matrix:
 install:
 - pip install -e .
 - pip install cmakeutils
-- cmake_setup 3.14.5
-- export PATH="$HOME/.local/cmake/bin:$PATH"
+- cmake_setup $CMAKE_VER
+- export PATH="$HOME/.local/cmake-$CMAKE_VER-Linux-x86_64/bin:$PATH"
 
 script:
 - buildmc -s tests/src -test
