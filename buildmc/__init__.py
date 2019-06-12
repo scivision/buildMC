@@ -13,9 +13,6 @@ def do_build(params: Dict[str, Union[str, Path]],
     """
     attempts build with Meson or CMake
     """
-    if not params['build_system'] in ('cmake', 'meson'):
-        raise ValueError('buildMC only knows CMake and Meson')
-
     compilers, compiler_args = get_compiler(str(params['vendor']), hints)
 
     args += compiler_args
