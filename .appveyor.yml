@@ -1,6 +1,6 @@
 image:
 - Visual Studio 2017
-- ubuntu1804
+#- ubuntu1804
 
 stack: python 3
 
@@ -15,6 +15,7 @@ build: off
 init:
 - cmd: set PATH=%MINGW_DIR%;%PATH%
 - cmd: set PATH=%PY_DIR%;%PY_DIR%\Scripts;%PATH%
+- cmd: choco upgrade cmake --pre
 
 install:
 - pip install -e .
