@@ -21,8 +21,9 @@ init:
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 install:
-- pip install -e .
+- pip install -e .[tests]
 
 test_script:
-- buildmc msvc -s tests/src -test
+- cmd: buildmc msvc -s tests/src -test
+- buildmc -s tests/src -test
 - pytest -v

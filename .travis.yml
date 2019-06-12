@@ -31,7 +31,7 @@ matrix:
 #    - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
 
 install:
-- pip install -e .
+- pip install -e .[tests,cov]
 # - pip install cmakeutils
 # - cmake_setup $CMAKE_VER
 # - export PATH="$HOME/.local/cmake-$CMAKE_VER-Linux-x86_64/bin:$PATH"

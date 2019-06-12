@@ -101,10 +101,11 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
     if cmake_version >= pkg_resources.parse_version('3.13'):
         # Creates build_dir if not exist
         gen_cmd += ['-S', str(params['source_dir']), '-B', str(params['build_dir'])]
+        ret = subprocess.run(gen_cmd, env=os.environ.update(compilers))
     else:  # build_dir must exist
-        gen_cmd += [str(params['source_dir']), str(params['build_dir'])]
+        gen_cmd += [str(params['build_dir'])]
+        ret = subprocess.run(gen_cmd, cwd=params['source_dir'], env=os.environ.update(compilers))
 
-    ret = subprocess.run(gen_cmd, env=os.environ.update(compilers))
     if ret.returncode:
         raise SystemExit(ret.returncode)
 
