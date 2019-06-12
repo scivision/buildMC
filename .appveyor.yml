@@ -23,4 +23,4 @@ install:
 - pip install -e .
 
 test_script:
-- buildmc -s tests/src -test
+- buildmc msvc -s tests/src -test
