@@ -45,7 +45,7 @@ def main():
                         datefmt='%H:%M:%S',
                         level=logging.INFO)
 
-    params = {'build_system': a.buildsys.lower(),
+    params = {'build_system': a.buildsys,
               'source_dir': a.srcdir,
               'build_dir': a.builddir,
               'vendor': a.vendor,
