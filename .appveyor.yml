@@ -18,6 +18,7 @@ init:
 - pip install cmakeutils
 - cmake_setup 3.14.5 -q
 - cmd: set PATH=C:\Program Files\CMake\bin;%PATH%
+- cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 
 install:
 - pip install -e .
