@@ -4,7 +4,7 @@ from typing import Union, Dict, List
 import os
 import shutil
 import json
-from pkg_resources import parse_version
+import pkg_resources
 import logging
 
 CMAKE = shutil.which('cmake')
@@ -20,14 +20,67 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     if not CMAKE:
         raise FileNotFoundError('CMake executable not found')
 
-    ret = subprocess.check_output(['cmake', '--version'], universal_newlines=True)
-    params['cmake_version'] = ret.split()[2]
+    cmake_version = get_cmake_version(CMAKE)
 
     build_dir = Path(params['build_dir'])
 
     cmakelists = Path(params['source_dir']) / 'CMakeLists.txt'
     if not cmakelists.is_file():
         raise FileNotFoundError(cmakelists)
+
+# %% wipe
+    params['cmake_cache'] = build_dir / 'CMakeCache.txt'
+
+    if _needs_wipe(params, compilers, args, wipe, cmake_version):
+        Path(params['cmake_cache']).unlink()
+        shutil.rmtree(build_dir/'CMakeFiles', ignore_errors=True)
+
+    _cmake_generate(params, compilers, args, cmake_version)
+
+    _cmake_build(params['build_dir'], cmake_version)
+
+    _cmake_test(params, compilers, dotest)
+
+    _cmake_install(params, cmake_version)
+
+
+def _cmake_install(params: Dict[str, Union[str, Path]], cmake_version: tuple):
+    if not params['install_dir']:
+        return
+
+    install_cmd = [CMAKE, '--build', str(params['build_dir']), '--target', 'install']
+
+    if cmake_version >= pkg_resources.parse_version('3.12'):
+        install_cmd.append('--parallel')
+
+    ret = subprocess.run(install_cmd)
+
+    if ret.returncode:
+        raise SystemExit(ret.returncode)
+
+
+def _cmake_build(build_dir: Union[str, Path], cmake_version: tuple):
+    """
+    cmake --parallel   CMake >= 3.12
+    """
+
+    build_cmd = [CMAKE, '--build', str(build_dir)]
+
+    if cmake_version >= pkg_resources.parse_version('3.12'):
+        build_cmd.append('--parallel')
+
+    ret = subprocess.run(build_cmd)
+
+    _test_result(ret)
+
+
+def _cmake_generate(params: Dict[str, Union[str, Path]],
+                    compilers: Dict[str, str],
+                    args: List[str],
+                    cmake_version: tuple):
+    """
+    CMake Generate
+    """
 
     wopts: List[str]
     if compilers['CC'] == 'cl':
@@ -43,37 +96,15 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
         wopts.append('-DCMAKE_INSTALL_PREFIX:PATH=' +
                      str(Path(params['install_dir']).expanduser()))
 
-    params['cmake_cache'] = build_dir / 'CMakeCache.txt'
+    gen_cmd = [CMAKE] + wopts
 
-    if _needs_wipe(params, compilers, wopts, wipe):
-        Path(params['cmake_cache']).unlink()
-        shutil.rmtree(build_dir/'CMakeFiles', ignore_errors=True)
+    if cmake_version >= pkg_resources.parse_version('3.13'):
+        # Creates build_dir if not exist
+        gen_cmd += ['-S', str(params['source_dir']), '-B', str(params['build_dir'])]
+    else:  # build_dir must exist
+        gen_cmd += [str(params['source_dir']), str(params['build_dir'])]
 
-    _cmake_generate(params, compilers, wopts)
-
-    ret = subprocess.run([CMAKE, '--build', str(build_dir), '--parallel'])
-
-    _test_result(ret)
-
-# %% test
-    _cmake_test(params, compilers, dotest)
-# %% install
-    if params['install_dir']:
-        subprocess.run([CMAKE, '--build', str(params['build_dir']), '--parallel', '--target', 'install'])
-        if ret.returncode:
-            raise SystemExit(ret.returncode)
-
-
-def _cmake_generate(params: Dict[str, Union[str, Path]],
-                    compilers: Dict[str, str],
-                    wopts: List[str] = []):
-
-    if parse_version(str(params['cmake_version'])) < parse_version('3.13'):
-        raise RuntimeError('CMake >= 3.14 required by buildmc')
-
-    cmd: List[str] = [CMAKE] + wopts + ['-S', str(params['source_dir']),
-                                        '-B', str(params['build_dir'])]
-    ret = subprocess.run(cmd, env=os.environ.update(compilers))
+    ret = subprocess.run(gen_cmd, env=os.environ.update(compilers))
     if ret.returncode:
         raise SystemExit(ret.returncode)
 
@@ -90,6 +121,7 @@ def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str], 
         if ret.returncode:
             raise SystemExit(ret.returncode)
     else:
+        # ctest --parallel   CMake >= 3.0
         ret = subprocess.run([CTEST, '--parallel', '--output-on-failure'], cwd=params['build_dir'])
         if ret.returncode:
             raise SystemExit(ret.returncode)
@@ -97,8 +129,8 @@ def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str], 
 
 def _needs_wipe(params: Dict[str, Union[str, Path]],
                 compilers: Dict[str, str],
-                wopts: List[str],
-                wipe: bool) -> bool:
+                args: List[str],
+                wipe: bool, cmake_version: tuple) -> bool:
     """
     requires CMake >= 3.14
 
@@ -109,13 +141,15 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
     index file is largest in lexiographical order:
     https://cmake.org/cmake/help/latest/manual/cmake-file-api.7.html#v1-reply-index-file
     """
-    if parse_version(str(params['cmake_version'])) < parse_version('3.14'):
-        raise RuntimeError('CMake >= 3.14 required by buildmc')
-
     if wipe:
         return True
 
     if not Path(params['cmake_cache']).is_file():
+        return False
+
+    # do this only when asked to use API, to allow basic use with older CMake
+    if cmake_version < pkg_resources.parse_version('3.14'):
+        logging.debug('CMake >= 3.14 required for CMake-file-api')
         return False
 
     api_dir = Path(params['build_dir']) / '.cmake/api/v1'
@@ -131,12 +165,12 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
         index_fn = indices[0]
     else:
         logging.info('CMake run for first generation')
-        _cmake_generate(params, compilers, wopts)
+        _cmake_generate(params, compilers, args, cmake_version)
         index_fn = sorted(resp_dir.glob('index-*.json'), reverse=True)[0]
 
     if (Path(params['source_dir']) / 'CMakeLists.txt').stat().st_mtime > index_fn.stat().st_mtime:
         logging.info('CMakeLists.txt modified after response index, regenerating')
-        _cmake_generate(params, compilers, wopts)
+        _cmake_generate(params, compilers, args, cmake_version)
         index_fn = sorted(resp_dir.glob('index-*.json'), reverse=True)[0]
 
     index = json.loads(index_fn.read_text())
@@ -185,3 +219,14 @@ def _test_result(ret: subprocess.CompletedProcess):
         print('\nBuild Complete!')
     else:
         raise SystemExit(ret.returncode)
+
+
+def get_cmake_version(exe: Union[Path, str]) -> tuple:
+
+    exe = Path(exe).expanduser()
+    if not exe.is_file():
+        raise FileNotFoundError(exe)
+
+    ret = subprocess.check_output([str(exe), '--version'], universal_newlines=True)
+
+    return pkg_resources.parse_version(ret.split()[2])
