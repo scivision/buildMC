@@ -6,9 +6,6 @@ import os
 import json
 import logging
 
-MESON = shutil.which('meson')
-NINJA = shutil.which('ninja')
-
 
 def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
                  args: List[str], *,
@@ -17,10 +14,12 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     attempt to build with Meson + Ninja
     """
 
-    if not MESON:
+    meson_exe = shutil.which('meson')
+    if not meson_exe:
         raise FileNotFoundError('Meson executable not found')
 
-    if not NINJA:
+    ninja_exe = shutil.which('ninja')
+    if not ninja_exe:
         raise FileNotFoundError('Ninja executable not found')
 
     build_dir = Path(params['build_dir'])
@@ -33,7 +32,7 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     build_ninja = build_dir / 'build.ninja'
 
-    meson_setup = [MESON] + ['setup'] + args
+    meson_setup = [meson_exe] + ['setup'] + args
 
     if params['install_dir']:
         meson_setup.append('--prefix '+str(Path(params['install_dir']).expanduser()))
@@ -50,19 +49,19 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
         if ret.returncode:
             raise SystemExit(ret.returncode)
 
-    ret = subprocess.run([NINJA, '-C', str(params['build_dir'])])
+    ret = subprocess.run([ninja_exe, '-C', str(params['build_dir'])])
 
     test_result(ret)
 
     if dotest:
         if not ret.returncode:
-            ret = subprocess.run([MESON, 'test', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
+            ret = subprocess.run([meson_exe, 'test', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
             if ret.returncode:
                 raise SystemExit(ret.returncode)
 
     if params['install_dir']:
         if not ret.returncode:
-            ret = subprocess.run([MESON, 'install', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
+            ret = subprocess.run([meson_exe, 'install', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
             if ret.returncode:
                 raise SystemExit(ret.returncode)
 

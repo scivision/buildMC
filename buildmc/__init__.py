@@ -3,10 +3,12 @@ from typing import Tuple, Dict, Union, List
 from . import mesonbuild as meson
 from . import cmake
 from .compilers import get_compiler
+from . import gnumake
 
 
 def do_build(params: Dict[str, Union[str, Path]],
              args: List[str], *,
+             hints: Dict[str, str],
              wipe: bool, dotest: bool):
     """
     attempts build with Meson or CMake
@@ -14,18 +16,22 @@ def do_build(params: Dict[str, Union[str, Path]],
     if not params['build_system'] in ('cmake', 'meson'):
         raise ValueError('buildMC only knows CMake and Meson')
 
-    compilers, compiler_args = get_compiler(str(params['vendor']))
+    compilers, compiler_args = get_compiler(str(params['vendor']), hints)
 
     args += compiler_args
 
     params['source_dir'], params['build_dir'] = get_dirs(params['source_dir'], params['build_dir'])
 
-    if params['build_system'] == 'meson':
+    build_system = _get_buildsystem(params['build_system'], params['source_dir'])
+
+    if build_system == 'meson':
         meson.meson_config(params, compilers, args, wipe=wipe, dotest=dotest)
-    elif params['build_system'] == 'cmake':
+    elif build_system == 'cmake':
         cmake.cmake_config(params, compilers, args, wipe=wipe, dotest=dotest)
+    elif build_system == 'gnumake':
+        gnumake.makebuild(params, compilers, args, wipe=wipe, dotest=dotest)
     else:
-        raise ValueError(params['build_system'])
+        raise ValueError(build_system)
 
 
 def get_dirs(source_dir: Union[str, Path],
@@ -50,3 +56,29 @@ def get_dirs(source_dir: Union[str, Path],
             raise SystemExit('Please specify a build directory.   buildmc -b mydirectory')
 
     return source_dir, build_dir
+
+
+def _get_buildsystem(build_system: Union[str, Path], source_dir: Union[str, Path]) -> str:
+    """
+    if user didn't pick a build system, try to figure out which is appropriate for the project
+    """
+
+    if not build_system:
+        pass
+    elif isinstance(build_system, str):
+        return build_system
+    elif isinstance(build_system, Path):
+        return build_system.stem
+    else:
+        raise TypeError(build_system)
+
+    source_dir = Path(source_dir).expanduser()
+
+    if (source_dir / 'CMakeLists.txt').is_file():
+        return 'cmake'
+    elif (source_dir / 'meson.build').is_file():
+        return 'meson'
+    elif (source_dir / 'Makefile').is_file():
+        return 'gnumake'
+
+    raise ValueError('Unable to determmine build system automatically')

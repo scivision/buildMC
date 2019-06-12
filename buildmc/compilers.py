@@ -3,7 +3,7 @@ import os
 import shutil
 
 
-def get_compiler(vendor: str) -> Tuple[Dict[str, str], List[str]]:
+def get_compiler(vendor: str, hints: Dict[str, str]) -> Tuple[Dict[str, str], List[str]]:
 
     if vendor == 'clang':
         compilers, args = clang_params()
@@ -11,12 +11,12 @@ def get_compiler(vendor: str) -> Tuple[Dict[str, str], List[str]]:
         compilers, args = gnu_params()
     elif vendor == 'intel':
         compilers, args = intel_params()
-    elif vendor == 'msvc':
-        compilers, args = msvc_params()
+    elif vendor in ('msvc', 'cl'):
+        compilers, args = msvc_params(hints)
     elif vendor in ('clangcl', 'clang-cl'):
         compilers, args = clangcl_params()
     elif vendor == 'pgi':
-        compilers, args = pgi_params()
+        compilers, args = pgi_params(hints)
     else:
         raise ValueError(vendor)
 
@@ -80,17 +80,24 @@ def clangcl_params() -> Tuple[Dict[str, str], List[str]]:
     return compilers, args
 
 
-def msvc_params() -> Tuple[Dict[str, str], List[str]]:
+def msvc_params(hints: Dict[str, str] = {}) -> Tuple[Dict[str, str], List[str]]:
     """
     Micro$oft Visual Studio
 
     Note in general MSVC lacks modern C++ features common to other C++ compilers,
     so don't be surprised if a C++11 or newer program doesn't compile.
+
+    An MSVC-compatible Fortran compiler may be specified.
+    It's up to the user to be sure it's compatible (will error during build otherwise).
     """
+
     if not shutil.which('cl'):
         raise EnvironmentError('Must have PATH set to include MSVC cl.exe compiler bin directory')
 
     compilers = {'CC': 'cl', 'CXX': 'cl'}
+
+    if hints.get('FC'):
+        compilers['FC'] = hints['FC']
 
     args: List[str] = []
 
