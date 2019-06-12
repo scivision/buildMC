@@ -1,11 +1,10 @@
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Any
 from pathlib import Path
 import shutil
 import subprocess
 import os
 import json
 import logging
-import itertools
 
 MESON = shutil.which('meson')
 NINJA = shutil.which('ninja')
@@ -84,29 +83,35 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
     cache_fn = api_dir / 'intro-targets.json'
     cache = json.loads(cache_fn.read_text())
 
-    ccs = {target['name']: [src['compiler'] for src in target['target_sources'] if src['language'] == 'c'] for target in cache}
-    cc = next(itertools.chain.from_iterable(*ccs.values()))
+    cc = _get_compiler(cache, 'c')
 
     if compilers['CC'] != cc:
         logging.info(f'C compiler changes from {cc} => {compilers["CC"]}')
         return True
 
-    ccs = {target['name']: [src['compiler'] for src in target['target_sources'] if src['language'] == 'cpp'] for target in cache}
-    cc = next(itertools.chain.from_iterable(*ccs.values()))
+    cxx = _get_compiler(cache, 'cpp')
 
-    if compilers['CXX'] != cc:
-        logging.info(f'CXX compiler changes from {cc} => {compilers["CXX"]}')
+    if compilers['CXX'] != cxx:
+        logging.info(f'CXX compiler changes from {cxx} => {compilers["CXX"]}')
         return True
 
-    ccs = {target['name']: [src['compiler']
-                            for src in target['target_sources'] if src['language'] == 'fortran'] for target in cache}
-    cc = next(itertools.chain.from_iterable(*ccs.values()))
+    fc = _get_compiler(cache, 'fortran')
 
-    if compilers['FC'] != cc:
+    if compilers['FC'] != fc:
         logging.info(f'Fortran compiler changes from {cc} => {compilers["FC"]}')
         return True
 
     return wipe
+
+
+def _get_compiler(cache: List[Dict[str, Any]], language: str) -> str:
+    for target in cache:
+        for src in target['target_sources']:
+            if src['language'] == 'fortran':
+                compiler = src['compiler'][0]
+                break
+
+    return compiler
 
 
 def test_result(ret: subprocess.CompletedProcess):

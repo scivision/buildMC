@@ -1,6 +1,7 @@
 [![DOI](https://zenodo.org/badge/190810341.svg)](https://zenodo.org/badge/latestdoi/190810341)
 
 [![Build Status](https://travis-ci.com/scivision/buildMC.svg?branch=master)](https://travis-ci.com/scivision/buildMC)
+[![Build status](https://ci.appveyor.com/api/projects/status/od39fe9u8u8jqh4j?svg=true)](https://ci.appveyor.com/project/scivision/buildmc)
 [![pypi versions](https://img.shields.io/pypi/pyversions/buildmc.svg)](https://pypi.python.org/pypi/buildmc)
 [![PyPi Download stats](http://pepy.tech/badge/buildmc)](http://pepy.tech/project/buildmc)
 

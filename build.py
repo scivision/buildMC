@@ -25,7 +25,7 @@ def main():
     p.add_argument('-buildsys', help='default build system', default='cmake')
     p.add_argument('-args', help='preprocessor arguments', nargs='+', default=[])
     p.add_argument('-debug', help='debug (-O0) instead of release (-O3) build', action='store_true')
-    p.add_argument('-test', help='run self-test / example', action='store_true')
+    p.add_argument('-test', help='run project self-test, if available', action='store_true')
     p.add_argument('-install', help='specify full install directory e.g. ~/libs_gcc/mylib')
     p.add_argument('-msvc', help='desired MSVC', default='Visual Studio 15 2017')
     a = p.parse_args()
