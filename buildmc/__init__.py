@@ -43,7 +43,7 @@ def get_dirs(source_dir: Union[str, Path],
         if not build_dir.is_dir():
             raise NotADirectoryError(build_dir)
     else:
-        build_dir = source_dir.parent / 'build'
+        build_dir = source_dir / 'build'
         if not build_dir.is_dir():
             raise SystemExit('Please specify a build directory.   buildmc -b mydirectory')
 

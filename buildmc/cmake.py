@@ -107,7 +107,7 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
         ret = subprocess.run(gen_cmd, cwd=params['source_dir'], env=os.environ.update(compilers))
 
     if ret.returncode:
-        raise SystemExit(ret.returncode)
+        raise SystemExit(f'{gen_cmd}\n{ret.returncode}')
 
 
 def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str], dotest: bool):
