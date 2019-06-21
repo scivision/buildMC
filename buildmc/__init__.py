@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Tuple, Dict, Union, List
+from typing import Tuple, Dict, Any, List
 from . import mesonbuild as meson
 from . import cmake
 from .compilers import get_compiler
 from . import gnumake
 
 
-def do_build(params: Dict[str, Union[str, Path]],
+def do_build(params: Dict[str, Any],
              args: List[str] = [], *,
              hints: Dict[str, str] = {},
              wipe: bool = False):
@@ -31,8 +31,7 @@ def do_build(params: Dict[str, Union[str, Path]],
         raise ValueError(build_system)
 
 
-def get_dirs(source_dir: Union[str, Path],
-             build_dir: Union[str, Path]) -> Tuple[Path, Path]:
+def get_dirs(source_dir: Path, build_dir: Path) -> Tuple[Path, Path]:
 
     source_dir = Path(source_dir).expanduser().resolve() if source_dir else Path().cwd()
 
@@ -50,7 +49,7 @@ def get_dirs(source_dir: Union[str, Path],
     return source_dir, build_dir
 
 
-def find_buildfile(source_dir: Union[str, Path]) -> str:
+def find_buildfile(source_dir: Path) -> str:
 
     source_dir = Path(source_dir).expanduser()
 
@@ -65,7 +64,7 @@ def find_buildfile(source_dir: Union[str, Path]) -> str:
     raise FileNotFoundError(f'could not find build system file (CMakeLists.txt or meson.build) in {source_dir}')
 
 
-def get_buildsystem(build_system: Union[str, Path], source_dir: Union[str, Path]) -> str:
+def get_buildsystem(build_system: Path, source_dir: Path) -> str:
     """
     if user didn't pick a build system, try to figure out which is appropriate for the project
     """

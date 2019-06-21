@@ -1,6 +1,6 @@
 from pathlib import Path
 import subprocess
-from typing import Union, Dict, List
+from typing import Any, Dict, List, Union
 import os
 import shutil
 import json
@@ -12,7 +12,7 @@ CTEST = shutil.which('ctest')
 MSVC = 'Visual Studio 15 2017'
 
 
-def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
+def cmake_config(params: Dict[str, Any], compilers: Dict[str, str],
                  args: List[str], *, wipe: bool):
     """
     attempt to build using CMake >= 3
@@ -22,9 +22,9 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     cmake_version = get_cmake_version(CMAKE)
 
-    build_dir = Path(params['build_dir'])
+    build_dir = params['build_dir']
 
-    cmakelists = Path(params['source_dir']) / 'CMakeLists.txt'
+    cmakelists = params['source_dir'] / 'CMakeLists.txt'
     if not cmakelists.is_file():
         raise FileNotFoundError(cmakelists)
 
@@ -44,7 +44,7 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     _cmake_install(params, cmake_version)
 
 
-def _cmake_install(params: Dict[str, Union[str, Path]], cmake_version: tuple):
+def _cmake_install(params: Dict[str, Any], cmake_version: tuple):
     if not params.get('install_dir'):
         return
 
@@ -59,7 +59,7 @@ def _cmake_install(params: Dict[str, Union[str, Path]], cmake_version: tuple):
         raise SystemExit(ret.returncode)
 
 
-def _cmake_build(build_dir: Union[str, Path], cmake_version: tuple):
+def _cmake_build(build_dir: Path, cmake_version: tuple):
     """
     cmake --parallel   CMake >= 3.12
     """
@@ -74,7 +74,7 @@ def _cmake_build(build_dir: Union[str, Path], cmake_version: tuple):
     _test_result(ret)
 
 
-def _cmake_generate(params: Dict[str, Union[str, Path]],
+def _cmake_generate(params: Dict[str, Any],
                     compilers: Dict[str, str],
                     args: List[str],
                     cmake_version: tuple):
@@ -83,8 +83,8 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
     """
 
     wopts: List[str]
-    if compilers['CC'] == 'cl':
-        gen = get_msvc_generator(str(params.get('msvc_cmake')))
+    if str(compilers.get('CC')).startswith('cl'):
+        gen = get_msvc_generator(params.get('msvc_cmake'))
         wopts = ['-G', gen, '-A', 'x64']
     elif os.name == 'nt':
         wopts = ['-G', 'MinGW Makefiles', '-DCMAKE_SH=CMAKE_SH-NOTFOUND']
@@ -118,7 +118,7 @@ def get_msvc_generator(gen: str) -> str:
     3. fallback to MSVC constant
     """
     if not gen:
-        if os.environ.get('CMAKE_GENERATOR') and os.environ['CMAKE_GENERATOR'].startswith('Visual Studio'):
+        if str(os.environ.get('CMAKE_GENERATOR')).startswith('Visual Studio'):
             gen = os.environ['CMAKE_GENERATOR']
         else:
             gen = MSVC
@@ -126,14 +126,14 @@ def get_msvc_generator(gen: str) -> str:
     return gen
 
 
-def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str]):
+def _cmake_test(params: Dict[str, Any], compilers: Dict[str, str]):
     if not params.get('do_test'):
         return
 
     if not CTEST:
         raise FileNotFoundError('CTest not available')
 
-    if compilers['CC'] == 'cl':
+    if str(compilers.get('CC')).startswith('cl'):
         ret = subprocess.run([CMAKE, '--build', str(params['build_dir']), '--target', 'RUN_TESTS'])
         if ret.returncode:
             raise SystemExit(ret.returncode)
@@ -144,7 +144,7 @@ def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str]):
             raise SystemExit(ret.returncode)
 
 
-def _needs_wipe(params: Dict[str, Union[str, Path]],
+def _needs_wipe(params: Dict[str, Any],
                 compilers: Dict[str, str],
                 args: List[str],
                 wipe: bool, cmake_version: tuple) -> bool:
@@ -169,7 +169,7 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
         logging.debug('CMake >= 3.14 required for CMake-file-api')
         return False
 
-    api_dir = Path(params['build_dir']) / '.cmake/api/v1'
+    api_dir = params['build_dir'] / '.cmake/api/v1'
     query_dir = api_dir / 'query'
     query_dir.mkdir(parents=True, exist_ok=True)
 
@@ -185,7 +185,7 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
         _cmake_generate(params, compilers, args, cmake_version)
         index_fn = sorted(resp_dir.glob('index-*.json'), reverse=True)[0]
 
-    if (Path(params['source_dir']) / 'CMakeLists.txt').stat().st_mtime > index_fn.stat().st_mtime:
+    if (params['source_dir'] / 'CMakeLists.txt').stat().st_mtime > index_fn.stat().st_mtime:
         logging.info('CMakeLists.txt modified after response index, regenerating')
         _cmake_generate(params, compilers, args, cmake_version)
         index_fn = sorted(resp_dir.glob('index-*.json'), reverse=True)[0]
@@ -203,16 +203,14 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
     elif gen.startswith('MinGW') and os.name != 'nt':
         logging.info('regenerating due to OS change: Windows => Unix')
         return True
-    elif gen.startswith('Visual') and compilers['CC'] != 'cl':
+    elif gen.startswith('Visual') and not str(compilers.get('CC')).startswith('cl'):
         logging.info(f'regenerating due to C compiler change: MSVC => {compilers["CC"]}')
         return True
 
     if _check_compiler_cache(compilers, cache, 'CC', 'C'):
         return True
-
     if _check_compiler_cache(compilers, cache, 'CXX', 'CXX'):
         return True
-
     if _check_compiler_cache(compilers, cache, 'FC', 'Fortran'):
         return True
 
@@ -225,7 +223,7 @@ def _check_compiler_cache(compilers: Dict[str, str], cache: Dict[str, str],
         c = cache.get(f'CMAKE_{cmake_compiler_name}_COMPILER')
         if c:
             c = Path(c).stem
-            if c != compilers[envvar]:
+            if not c.startswith(compilers[envvar]):
                 logging.info(f'regenerating due to {cmake_compiler_name} compiler change: {c} => {envvar}')
                 return True
 
@@ -239,7 +237,7 @@ def _test_result(ret: subprocess.CompletedProcess):
         raise SystemExit(ret.returncode)
 
 
-def get_cmake_version(exe: Union[Path, str]) -> tuple:
+def get_cmake_version(exe: Union[str, Path]) -> tuple:
 
     exe = Path(exe).expanduser()
     if not exe.is_file():

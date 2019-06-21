@@ -1,4 +1,4 @@
-from typing import Dict, Union, List, Any
+from typing import Dict,  List, Any
 from pathlib import Path
 import shutil
 import subprocess
@@ -7,7 +7,7 @@ import json
 import logging
 
 
-def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
+def meson_config(params: Dict[str, Any], compilers: Dict[str, str],
                  args: List[str], *, wipe: bool):
     """
     attempt to build with Meson + Ninja
@@ -21,8 +21,8 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
     if not ninja_exe:
         raise FileNotFoundError('Ninja executable not found')
 
-    build_dir = Path(params['build_dir'])
-    source_dir = Path(params['source_dir'])
+    build_dir = params['build_dir']
+    source_dir = params['source_dir']
 
     meson_build = source_dir / 'meson.build'
 
@@ -33,7 +33,7 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     meson_setup = [meson_exe] + ['setup'] + args
 
-    if params['install_dir']:
+    if params.get('install_dir'):
         meson_setup.append('--prefix '+str(Path(params['install_dir']).expanduser()))
 
     wipe = _needs_wipe(params, compilers, wipe, build_ninja)
@@ -54,18 +54,18 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     if params.get('do_test'):
         if not ret.returncode:
-            ret = subprocess.run([meson_exe, 'test', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
+            ret = subprocess.run([meson_exe, 'test', '-C', str(params['build_dir'])])
             if ret.returncode:
                 raise SystemExit(ret.returncode)
 
-    if params['install_dir']:
+    if params.get('install_dir'):
         if not ret.returncode:
-            ret = subprocess.run([meson_exe, 'install', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
+            ret = subprocess.run([meson_exe, 'install', '-C', str(params['build_dir'])])
             if ret.returncode:
                 raise SystemExit(ret.returncode)
 
 
-def _needs_wipe(params: Dict[str, Union[str, Path]],
+def _needs_wipe(params: Dict[str, Any],
                 compilers: Dict[str, str],
                 wipe: bool, build_ninja: Path) -> bool:
     """
@@ -77,29 +77,33 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
     if wipe:
         return True
 
-    api_dir = Path(params['build_dir']) / 'meson-info'
+    api_dir = params['build_dir'] / 'meson-info'
     cache_fn = api_dir / 'intro-targets.json'
     cache = json.loads(cache_fn.read_text())
 
-    cc = _get_compiler(cache, 'c')
-
-    if compilers['CC'] != cc:
-        logging.info(f'C compiler changes from {cc} => {compilers["CC"]}')
-        return True
-
-    cxx = _get_compiler(cache, 'cpp')
-
-    if compilers['CXX'] != cxx:
-        logging.info(f'CXX compiler changes from {cxx} => {compilers["CXX"]}')
-        return True
-
-    fc = _get_compiler(cache, 'fortran')
-
-    if compilers['FC'] != fc:
-        logging.info(f'Fortran compiler changes from {cc} => {compilers["FC"]}')
+    if _check_compiler_cache(compilers, cache, 'CC'):
         return True
 
     return wipe
+
+
+def _check_compiler_cache(compilers: Dict[str, str], cache: List[Dict[str, Any]], envvar: str) -> bool:
+    if envvar == 'CC':
+        lang = 'c'
+    elif envvar == 'CXX':
+        lang = 'cpp'
+    elif envvar == 'FC':
+        lang = 'fortran'
+    else:  # FIXME: other languages
+        return False
+
+    c = _get_compiler(cache, lang)
+
+    if c.startswith(str(compilers.get(envvar))):
+        logging.info(f'C compiler changes from {c} => {compilers[envvar]}')
+        return True
+
+    return False
 
 
 def _get_compiler(cache: List[Dict[str, Any]], language: str) -> str:
