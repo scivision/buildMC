@@ -8,8 +8,7 @@ import logging
 
 
 def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
-                 args: List[str], *,
-                 wipe: bool, dotest: bool):
+                 args: List[str], *, wipe: bool):
     """
     attempt to build with Meson + Ninja
     """
@@ -53,7 +52,7 @@ def meson_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     test_result(ret)
 
-    if dotest:
+    if params.get('do_test'):
         if not ret.returncode:
             ret = subprocess.run([meson_exe, 'test', '-C', str(params['build_dir'])])  # type: ignore     # MyPy bug
             if ret.returncode:

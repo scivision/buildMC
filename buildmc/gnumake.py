@@ -6,8 +6,7 @@ import os
 
 
 def makebuild(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
-              args: List[str], *,
-              wipe: bool, dotest: bool):
+              args: List[str], *, wipe: bool):
     """
     TODO: this function is untested. Let us know if it's of interest
     """
@@ -39,7 +38,7 @@ def makebuild(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     test_result(ret)
 
-    if dotest:
+    if params.get('do_test'):
         if not ret.returncode:
             ret = subprocess.run(base_cmd + ['test'])
             if ret.returncode:

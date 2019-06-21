@@ -7,9 +7,9 @@ from . import gnumake
 
 
 def do_build(params: Dict[str, Union[str, Path]],
-             args: List[str], *,
-             hints: Dict[str, str],
-             wipe: bool, dotest: bool):
+             args: List[str] = [], *,
+             hints: Dict[str, str] = {},
+             wipe: bool = False):
     """
     attempts build with Meson or CMake
     """
@@ -19,14 +19,14 @@ def do_build(params: Dict[str, Union[str, Path]],
 
     params['source_dir'], params['build_dir'] = get_dirs(params['source_dir'], params['build_dir'])
 
-    build_system = get_buildsystem(params['build_system'], params['source_dir'])
+    build_system = get_buildsystem(params.get('build_system'), params['source_dir'])
 
     if build_system == 'meson':
-        meson.meson_config(params, compilers, args, wipe=wipe, dotest=dotest)
+        meson.meson_config(params, compilers, args, wipe=wipe)
     elif build_system == 'cmake':
-        cmake.cmake_config(params, compilers, args, wipe=wipe, dotest=dotest)
+        cmake.cmake_config(params, compilers, args, wipe=wipe)
     elif build_system == 'gnumake':
-        gnumake.makebuild(params, compilers, args, wipe=wipe, dotest=dotest)
+        gnumake.makebuild(params, compilers, args, wipe=wipe)
     else:
         raise ValueError(build_system)
 

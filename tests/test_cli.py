@@ -1,21 +1,35 @@
 #!/usr/bin/env python
 import pytest
-import subprocess
+import shutil
+from pathlib import Path
+
 import buildmc
 
-
-def test_notexist_sourcedir(tmp_path):
-    badpath = tmp_path / 'abc123'
-    with pytest.raises(NotADirectoryError):
-        buildmc.find_buildfile(badpath)
-
-    with pytest.raises(subprocess.CalledProcessError):
-        subprocess.check_call(['buildmc', '-s', str(badpath)])
+R = Path(__file__).parent
 
 
-def test_notexist_sourcefile(tmp_path):
-    with pytest.raises(FileNotFoundError):
-        buildmc.find_buildfile(tmp_path)
+@pytest.mark.skipif(not shutil.which('cl'), reason='MSVC appears not to be loaded via vcvars64.bat')
+def test_msvc(tmp_path):
+    params = {'source_dir': R/'src',
+              'build_dir': tmp_path,
+              'vendor': 'msvc',
+              }
+    buildmc.do_build(params)
+
+    params['test'] = True
+    buildmc.do_build(params)
+
+
+@pytest.mark.skipif(not shutil.which('gcc'), reason='GCC appears not available')
+def test_gcc(tmp_path):
+    params = {'source_dir': R/'src',
+              'build_dir': tmp_path,
+              'vendor': 'gcc',
+              }
+    buildmc.do_build(params)
+
+    params['do_test'] = True
+    buildmc.do_build(params)
 
 
 if __name__ == '__main__':

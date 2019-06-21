@@ -9,11 +9,11 @@ import logging
 
 CMAKE = shutil.which('cmake')
 CTEST = shutil.which('ctest')
+MSVC = 'Visual Studio 15 2017'
 
 
 def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
-                 args: List[str], *,
-                 wipe: bool, dotest: bool):
+                 args: List[str], *, wipe: bool):
     """
     attempt to build using CMake >= 3
     """
@@ -39,13 +39,13 @@ def cmake_config(params: Dict[str, Union[str, Path]], compilers: Dict[str, str],
 
     _cmake_build(params['build_dir'], cmake_version)
 
-    _cmake_test(params, compilers, dotest)
+    _cmake_test(params, compilers)
 
     _cmake_install(params, cmake_version)
 
 
 def _cmake_install(params: Dict[str, Union[str, Path]], cmake_version: tuple):
-    if not params['install_dir']:
+    if not params.get('install_dir'):
         return
 
     install_cmd = [CMAKE, '--build', str(params['build_dir']), '--target', 'install']
@@ -84,7 +84,8 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
 
     wopts: List[str]
     if compilers['CC'] == 'cl':
-        wopts = ['-G', str(params['msvc_cmake']), '-A', 'x64']
+        wopts = ['-G', str(params.get('msvc_cmake', MSVC)),
+                 '-A', 'x64']
     elif os.name == 'nt':
         wopts = ['-G', 'MinGW Makefiles', '-DCMAKE_SH=CMAKE_SH-NOTFOUND']
     else:
@@ -92,7 +93,7 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
 
     wopts += args
 
-    if params['install_dir']:  # path specified
+    if params.get('install_dir'):  # path specified
         wopts.append('-DCMAKE_INSTALL_PREFIX:PATH=' +
                      str(Path(params['install_dir']).expanduser()))
 
@@ -103,15 +104,15 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
         gen_cmd += ['-S', str(params['source_dir']), '-B', str(params['build_dir'])]
         ret = subprocess.run(gen_cmd, env=os.environ.update(compilers))
     else:  # build_dir must exist
-        gen_cmd += [str(params['build_dir'])]
-        ret = subprocess.run(gen_cmd, cwd=params['source_dir'], env=os.environ.update(compilers))
+        gen_cmd += [str(params['source_dir'])]
+        ret = subprocess.run(gen_cmd, cwd=params['build_dir'], env=os.environ.update(compilers))
 
     if ret.returncode:
         raise SystemExit(f'{gen_cmd}\n{ret.returncode}')
 
 
-def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str], dotest: bool):
-    if not dotest:
+def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str]):
+    if not params.get('do_test'):
         return
 
     if not CTEST:
@@ -191,28 +192,29 @@ def _needs_wipe(params: Dict[str, Union[str, Path]],
         logging.info(f'regenerating due to C compiler change: MSVC => {compilers["CC"]}')
         return True
 
-    cc = cache.get('CMAKE_C_COMPILER')
-    if cc:
-        cc = Path(cc).stem
-        if cc != compilers['CC']:
-            logging.info(f'regenerating due to C compiler change: {cc} => {compilers["CC"]}')
-            return True
+    if _check_compiler_cache(compilers, cache, 'CC', 'C'):
+        return True
 
-    cxx = cache.get('CMAKE_CXX_COMPILER')
-    if cxx:
-        cxx = Path(cxx).stem
-        if cxx != compilers['CXX']:
-            logging.info(f'regenerating due to CXX compiler change: {cxx} => {compilers["CXX"]}')
-            return True
+    if _check_compiler_cache(compilers, cache, 'CXX', 'CXX'):
+        return True
 
-    fc = cache.get('CMAKE_Fortran_COMPILER')
-    if fc:
-        fc = Path(fc).stem
-        if fc != compilers['FC']:
-            logging.info(f'regenerating due to Fortran compiler change: {fc} => {compilers["FC"]}')
-            return True
+    if _check_compiler_cache(compilers, cache, 'FC', 'Fortran'):
+        return True
 
     return wipe
+
+
+def _check_compiler_cache(compilers: Dict[str, str], cache: Dict[str, str],
+                          envvar: str, cmake_compiler_name: str) -> bool:
+    if compilers.get(envvar):
+        c = cache.get(f'CMAKE_{cmake_compiler_name}_COMPILER')
+        if c:
+            c = Path(c).stem
+            if c != compilers[envvar]:
+                logging.info(f'regenerating due to {cmake_compiler_name} compiler change: {c} => {envvar}')
+                return True
+
+    return False
 
 
 def _test_result(ret: subprocess.CompletedProcess):

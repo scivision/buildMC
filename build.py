@@ -30,12 +30,12 @@ def main():
     p.add_argument('-s', '--srcdir', help='path to source directory')
     p.add_argument('-b', '--builddir', help='path to build directory')
     p.add_argument('-wipe', help='wipe and rebuild from scratch', action='store_true')
-    p.add_argument('-buildsys', help='default build system')
+    p.add_argument('-buildsys', help='default build system', nargs='+', default=[])
     p.add_argument('-args', help='preprocessor arguments', nargs='+', default=[])
     p.add_argument('-debug', help='debug (-O0) instead of release (-O3) build', action='store_true')
     p.add_argument('-test', help='run project self-test, if available', action='store_true')
     p.add_argument('-install', help='specify full install directory e.g. ~/libs_gcc/mylib')
-    p.add_argument('-msvc', help='desired MSVC', default='Visual Studio 15 2017')
+    p.add_argument('-msvc', help='desired MSVC')
     p.add_argument('-cc', help='specify C compiler CC complimentary to compiler vendor e.g. icc')
     p.add_argument('-cxx', help='specify C++ compiler CXX complimentary to compiler vendor e.g. icpc or icl')
     p.add_argument('-fc', help='specify Fortran compiler FC complimentary to compiler vendor e.g. ifort')
@@ -44,13 +44,6 @@ def main():
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%H:%M:%S',
                         level=logging.INFO)
-
-    params = {'build_system': a.buildsys,
-              'source_dir': a.srcdir,
-              'build_dir': a.builddir,
-              'vendor': a.vendor,
-              'msvc_cmake': a.msvc,
-              'install_dir': a.install}
 
     args = a.args
     if a.debug:
@@ -61,7 +54,19 @@ def main():
         if v:
             hints[k] = v
 
-    buildmc.do_build(params, args, hints=hints, wipe=a.wipe, dotest=a.test)
+    params = {'source_dir': a.srcdir,
+              'build_dir': a.builddir,
+              'vendor': a.vendor,
+              'msvc_cmake': a.msvc,
+              'install_dir': a.install,
+              'do_test': a.test}
+
+    if a.buildsys:
+        for buildsys in a.buildsys:
+            params['build_system'] = buildsys
+            buildmc.do_build(params, args, hints=hints, wipe=a.wipe)
+    else:
+        buildmc.do_build(params, args, hints=hints, wipe=a.wipe)
 
 
 if __name__ == '__main__':
