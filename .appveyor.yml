@@ -15,6 +15,7 @@ build: off
 init:
 - cmd: set PATH=%MINGW_DIR%;%PATH%
 - cmd: set PATH=%PY_DIR%;%PY_DIR%\Scripts;%PATH%
+- pip install meson
 # - pip install cmakeutils
 # - cmake_setup 3.14.5 -q
 # - cmd: set PATH=C:\Program Files\CMake\bin;%PATH%
@@ -24,6 +25,6 @@ install:
 - pip install -e .[tests]
 
 test_script:
-- cmd: buildmc msvc -s tests/src -test
-- buildmc -s tests/src -test
 - pytest -v
+- cmd: buildmc msvc -s tests -test
+- buildmc gcc -s tests -test

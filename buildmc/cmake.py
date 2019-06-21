@@ -84,8 +84,8 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
 
     wopts: List[str]
     if compilers['CC'] == 'cl':
-        wopts = ['-G', str(params.get('msvc_cmake', MSVC)),
-                 '-A', 'x64']
+        gen = get_msvc_generator(str(params.get('msvc_cmake')))
+        wopts = ['-G', gen, '-A', 'x64']
     elif os.name == 'nt':
         wopts = ['-G', 'MinGW Makefiles', '-DCMAKE_SH=CMAKE_SH-NOTFOUND']
     else:
@@ -109,6 +109,21 @@ def _cmake_generate(params: Dict[str, Union[str, Path]],
 
     if ret.returncode:
         raise SystemExit(f'{gen_cmd}\n{ret.returncode}')
+
+
+def get_msvc_generator(gen: str) -> str:
+    """
+    1. see if user specified MSVC generator in params
+    2. see if CMAKE_GENERATOR is set for Visual Studio
+    3. fallback to MSVC constant
+    """
+    if not gen:
+        if os.environ.get('CMAKE_GENERATOR') and os.environ['CMAKE_GENERATOR'].startswith('Visual Studio'):
+            gen = os.environ['CMAKE_GENERATOR']
+        else:
+            gen = MSVC
+
+    return gen
 
 
 def _cmake_test(params: Dict[str, Union[str, Path]], compilers: Dict[str, str]):
