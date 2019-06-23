@@ -8,7 +8,7 @@ git:
 
 python:
 # - 3.8-dev
-# - 3.7
+- 3.7
 - 3.6
 
 # env: CMAKE_VER=3.14.5
@@ -40,5 +40,5 @@ install:
 script:
 - pytest -v
 
-- buildmc -s tests -buildsys meson -test
-- buildmc -s tests -buildsys cmake -test
+- buildmc tests -buildsys meson -test
+- buildmc tests -buildsys cmake -test

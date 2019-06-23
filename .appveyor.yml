@@ -26,5 +26,5 @@ install:
 
 test_script:
 - pytest -v
-- cmd: buildmc msvc -s tests -test
-- buildmc gcc -s tests -test
+- cmd: buildmc tests -v msvc -test
+- buildmc tests -v gcc -test
