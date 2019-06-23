@@ -41,12 +41,11 @@ def test_cmake_libargs():
     assert libargs[0] == '-DLAPACK_ROOT=~/nonexistent'
 
 
-def test_complier_spec(tmp_path):
+def test_compiler_spec(tmp_path):
 
     assert cfg.get_compiler_spec(tmp_path) == {}
 
-    cspecs = cfg.get_compiler_spec()
-    assert 'FC' in cspecs
+    assert cfg.get_compiler_spec() == {}
 
 
 if __name__ == '__main__':

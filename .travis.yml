@@ -45,5 +45,5 @@ install:
 script:
 - pytest -v
 
-- buildmc tests -buildsys meson -test
-- buildmc tests -buildsys cmake -test
+- buildmc tests -s meson -test
+- buildmc tests -s cmake -test
