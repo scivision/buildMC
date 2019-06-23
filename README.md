@@ -40,6 +40,13 @@ pip install -e .
 buildMC makes switching between compilers trivial.
 Also, building on native Windows and Windows Subsystem for Linux is detected and handled--the CMake or Meson cache is wiped to allow clean rebuild when switching without fuss.
 
+The most basic use case, and what I use most frequently, is simply to specify the source directory:
+```sh
+buildmc ~/myproj
+```
+This uses whatever compiler and build_dir are specified in the ~/myproj/buildmc.ini
+If buildmc.ini doesn't exist, defaults are attempted.
+
 
 ### Examples
 
@@ -47,17 +54,33 @@ Say you want to ensure a project builds with each of Visual Studio, GNU/GCC, Int
 This can be easily done by typing in the top-level of the project directory:
 
 ```sh
-buildmc msvc
+buildmc . -v msvc
 
-buildmc gnu
+buildmc . -v gnu
 
-buildmc intel
+buildmc . -v intel
 
-buildmc clang
+buildmc . -v clang
 ```
 
 Each command independently builds and runs the user-configured tests via the selected build system.
 When switching between Windows and Linux (using WSL from Windows) buildMC detects the OS switch and wipes the build cache and rebuilds as needed.
+
+### Select build system
+
+Select the build system (currently, `cmake` or `meson`) like:
+
+```sh
+buildmc . -s meson -test
+```
+
+The optional `-test` runs the project self-test, building first if necessary.
+
+Now let's say you want to try CMake.
+
+```sh
+buildmc . -s cmake -test
+```
 
 
 ## Notes

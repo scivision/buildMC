@@ -1,24 +1,33 @@
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Union, Sequence
 import os
 import shutil
 
+from . import config
 
-def get_compiler(vendor: str, hints: Dict[str, str]) -> Tuple[Dict[str, str], List[str]]:
 
-    if vendor == 'clang':
-        compilers, args = clang_params()
-    elif vendor in ('gnu', 'gcc'):
+def get_compiler(vendor: Sequence[str]) -> Tuple[Dict[str, str], List[str]]:
+
+    if not vendor:
+        vendor = ['gnu']
+    if isinstance(vendor, str):
+        vendor = [vendor]
+
+    vs = set(vendor)
+
+    if vs.intersection(('gnu', 'gcc')):
         compilers, args = gnu_params()
-    elif vendor == 'intel':
+    elif vs.intersection(('clang', 'flang', 'llvm')):
+        compilers, args = clang_params()
+    elif vs.intersection(('intel', 'icl', 'icc')):
         compilers, args = intel_params()
-    elif vendor in ('msvc', 'cl'):
-        compilers, args = msvc_params(hints)
-    elif vendor in ('clangcl', 'clang-cl'):
+    elif vs.intersection(('msvc', 'cl')):
+        compilers, args = msvc_params()
+    elif vs.intersection(('clangcl', 'clang-cl')):
         compilers, args = clangcl_params()
-    elif vendor == 'pgi':
-        compilers, args = pgi_params(hints)
+    elif vs.intersection(('pgi', 'pgcc')):
+        compilers, args = pgi_params()
     else:
-        raise ValueError(vendor)
+        raise ValueError(f'unknown compiler vendor {vendor}')
 
     return compilers, args
 
@@ -27,7 +36,12 @@ def clang_params() -> Tuple[Dict[str, str], List[str]]:
     """
     LLVM compilers e.g. Clang, Flang
     """
-    compilers = {'CC': 'clang', 'CXX': 'clang++', 'FC': 'flang'}
+    compilers = {'CC': 'clang',
+                 'CXX': 'clang++',
+                 'FC': 'flang'}
+
+    if not shutil.which(compilers['CC']):
+        raise EnvironmentError('Clang compiler not found')
 
     args: List[str] = []
 
@@ -38,7 +52,12 @@ def gnu_params() -> Tuple[Dict[str, str], List[str]]:
     """
     GNU compilers e.g. GCC, Gfortran
     """
-    compilers = {'FC': 'gfortran', 'CC': 'gcc', 'CXX': 'g++'}
+    compilers = {'FC': 'gfortran',
+                 'CC': 'gcc',
+                 'CXX': 'g++'}
+
+    if not shutil.which(compilers['CC']):
+        raise EnvironmentError('GCC compiler not found')
 
     args: List[str] = []
 
@@ -61,6 +80,9 @@ def intel_params() -> Tuple[Dict[str, str], List[str]]:
         compilers['CC'] = 'icc'
         compilers['CXX'] = 'icpc'
 
+    if not shutil.which(compilers['CC']):
+        raise EnvironmentError('Intel compiler not found')
+
     args: List[str] = []
 
     return compilers, args
@@ -71,16 +93,20 @@ def intel_params() -> Tuple[Dict[str, str], List[str]]:
 
 def clangcl_params() -> Tuple[Dict[str, str], List[str]]:
     """
-    LLVM compiler MSVC-like interface e.g. Clang, Flang
+    LLVM compiler MSVC-like interface e.g. Clang
     """
-    compilers = {'CC': 'clang-cl', 'CXX': 'clang-cl', 'FC': 'flang'}
+    compilers = {'CC': 'clang-cl',
+                 'CXX': 'clang-cl'}
+
+    if not shutil.which(compilers['CC']):
+        raise EnvironmentError('Clang-CL compiler not found')
 
     args: List[str] = []
 
     return compilers, args
 
 
-def msvc_params(hints: Dict[str, str] = {}) -> Tuple[Dict[str, str], List[str]]:
+def msvc_params() -> Tuple[Dict[str, str], List[str]]:
     """
     Micro$oft Visual Studio
 
@@ -91,38 +117,61 @@ def msvc_params(hints: Dict[str, str] = {}) -> Tuple[Dict[str, str], List[str]]:
     It's up to the user to be sure it's compatible (will error during build otherwise).
     """
 
-    if not shutil.which('cl'):
+    compilers = {'CC': 'cl',
+                 'CXX': 'cl'}
+
+    if not shutil.which(compilers['CC']):
         raise EnvironmentError('Must have PATH set to include MSVC cl.exe compiler bin directory')
 
-    compilers = {'CC': 'cl', 'CXX': 'cl'}
+    hints = config.get_compiler_spec()
 
     if hints.get('FC'):
         compilers['FC'] = hints['FC']
+        if not shutil.which(compilers['FC']):
+            raise EnvironmentError('Fortran compiler {compilers["FC"]} not found')
 
     args: List[str] = []
 
     return compilers, args
 
 
-def pgi_params(hints: Dict[str, str] = {}) -> Tuple[Dict[str, str], List[str]]:
+def pgi_params() -> Tuple[Dict[str, str], List[str]]:
     """
     Nvidia PGI compilers
 
     pgc++ is not available on Windows at this time
     """
-    if not shutil.which('pgcc') or not shutil.which('pgfortran'):
-        raise EnvironmentError('Must have PATH set to include PGI compiler bin directory')
 
-    # %% compiler variables
-    compilers = {'FC': 'pgfortran', 'CC': 'pgcc'}
+    compilers = {'FC': 'pgfortran',
+                 'CC': 'pgcc'}
+
     if os.name == 'nt':
-        if hints.get('CXX'):
-            compilers['CXX'] = hints['CXX']
+        cspec = config.get_compiler_spec()
+        if cspec.get('CXX'):
+            compilers['CXX'] = cspec['CXX']
         else:
             compilers['CXX'] = 'cl'
     else:
         compilers['CXX'] = 'pgc++'
 
+    compilers['CXX'] = compilers['CXX']
+
+    if not shutil.which(compilers['CC']):
+        raise EnvironmentError('Must have PATH set to include PGI compiler bin directory')
+
     args: List[str] = []
 
     return compilers, args
+
+
+def is_msvc(cc: Union[str, Dict[str, str]]) -> bool:
+    """
+    cc: str
+        Name of C compiler e.g. from str(compilers.get('CC'))
+    """
+    if isinstance(cc, dict):
+        cc = cc.get('CC')
+
+    cc = str(cc)
+
+    return cc.startswith('cl') and not cc.startswith('clang')

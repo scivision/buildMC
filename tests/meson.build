@@ -1,10 +1,14 @@
 project('MesonAPIdemo',  default_options : ['default_library=static'])
 
 
+full = get_option('full')
+
 if add_languages('c', required: false)
   c_exe = executable('minimal_c', 'src/minimal.c')
   test('Minimal_C', c_exe)
 endif
+
+if full
 
 if add_languages('cpp', required: false)
   cxx_exe = executable('minimal_cxx', 'src/minimal.cxx')
@@ -26,4 +30,6 @@ if add_languages('objcpp', required: false)
   objcpp_exe = executable('minimal_objcpp', 'src/minimal.mm')
   test('Minimal_ObjC++', objcpp_exe)
 endif
+endif
+
 endif

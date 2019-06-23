@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 project(CMakeAPIdemo LANGUAGES NONE)
 enable_testing()
 
+option(full "do all langauge tests" OFF)
+
 include(CheckLanguage)
 
 check_language(C)
@@ -10,6 +12,9 @@ if(CMAKE_C_COMPILER)
   add_executable(minimal_c src/minimal.c)
   add_test(NAME Minimal_C COMMAND minimal_c)
 endif()
+
+
+if(full)
 
 check_language(CXX)
 if(CMAKE_CXX_COMPILER)
@@ -38,3 +43,5 @@ if(CMAKE_Swift_COMPILER)
   add_executable(minimal_swift src/minimal.swift)
   add_test(NAME Minimal_Swift COMMAND minimal_swift)
 endif()
+
+endif(full)

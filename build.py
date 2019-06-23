@@ -17,8 +17,9 @@ Certain compilers are ABI compatible with each other. For these cases, a user
 can specify a main compiler vendor.
 Example:
 
-    buildmc msvc -fc ifort
+    buildmc ~/my_project -v intel
 """
+from pathlib import Path
 from argparse import ArgumentParser
 import logging
 import buildmc
@@ -26,19 +27,17 @@ import buildmc
 
 def main():
     p = ArgumentParser()
-    p.add_argument('vendor', help='compiler vendor [clang, clang-cl, gnu, intel, msvc, pgi]', nargs='?', default='gnu')
-    p.add_argument('-s', '--srcdir', help='path to source directory')
-    p.add_argument('-b', '--builddir', help='path to build directory')
+    p.add_argument('source_dir', help='path to source directory', nargs='?', default=Path.cwd())
+    p.add_argument('-v', '--vendor', help='compiler vendor [clang, clang-cl, gnu, intel, msvc, pgi]')
+    p.add_argument('-b', '--build_dir', help='path to build directory')
     p.add_argument('-wipe', help='wipe and rebuild from scratch', action='store_true')
-    p.add_argument('-buildsys', help='default build system', nargs='+', default=[])
+    p.add_argument('-s', '--buildsys', help='default build system')
+    p.add_argument('-cfg', help='path to buildmc.ini file')
     p.add_argument('-args', help='preprocessor arguments', nargs='+', default=[])
     p.add_argument('-debug', help='debug (-O0) instead of release (-O3) build', action='store_true')
     p.add_argument('-test', help='run project self-test, if available', action='store_true')
     p.add_argument('-install', help='specify full install directory e.g. ~/libs_gcc/mylib')
     p.add_argument('-msvc', help='desired MSVC')
-    p.add_argument('-cc', help='specify C compiler CC complimentary to compiler vendor e.g. icc')
-    p.add_argument('-cxx', help='specify C++ compiler CXX complimentary to compiler vendor e.g. icpc or icl')
-    p.add_argument('-fc', help='specify Fortran compiler FC complimentary to compiler vendor e.g. ifort')
     a = p.parse_args()
 
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
@@ -49,24 +48,16 @@ def main():
     if a.debug:
         args.append('-DCMAKE_BUILD_TYPE=Debug')
 
-    hints = {}
-    for k, v in zip(('CC', 'CXX', 'FC'), (a.cc, a.cxx, a.fc)):
-        if v:
-            hints[k] = v
-
-    params = {'source_dir': a.srcdir,
-              'build_dir': a.builddir,
+    params = {'source_dir': a.source_dir,
+              'build_dir': a.build_dir,
               'vendor': a.vendor,
+              'build_system': a.buildsys,
               'msvc_cmake': a.msvc,
               'install_dir': a.install,
-              'do_test': a.test}
+              'do_test': a.test,
+              'config_fn': a.cfg}
 
-    if a.buildsys:
-        for buildsys in a.buildsys:
-            params['build_system'] = buildsys
-            buildmc.do_build(params, args, hints=hints, wipe=a.wipe)
-    else:
-        buildmc.do_build(params, args, hints=hints, wipe=a.wipe)
+    buildmc.do_build(params, args, wipe=a.wipe)
 
 
 if __name__ == '__main__':

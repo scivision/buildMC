@@ -6,118 +6,118 @@ import os
 import json
 import logging
 
+from .compilers import get_compiler
 
-def meson_config(params: Dict[str, Any], compilers: Dict[str, str],
-                 args: List[str], *, wipe: bool):
-    """
-    attempt to build with Meson + Ninja
-    """
-
-    meson_exe = shutil.which('meson')
-    if not meson_exe:
-        raise FileNotFoundError('Meson executable not found')
-
-    ninja_exe = shutil.which('ninja')
-    if not ninja_exe:
-        raise FileNotFoundError('Ninja executable not found')
-
-    build_dir = params['build_dir']
-    source_dir = params['source_dir']
-
-    meson_build = source_dir / 'meson.build'
-
-    if not meson_build.is_file():
-        raise FileNotFoundError(meson_build)
-
-    build_ninja = build_dir / 'build.ninja'
-
-    meson_setup = [meson_exe] + ['setup'] + args
-
-    if params.get('install_dir'):
-        meson_setup.append('--prefix '+str(Path(params['install_dir']).expanduser()))
-
-    wipe = _needs_wipe(params, compilers, wipe, build_ninja)
-
-    if wipe:
-        meson_setup.append('--wipe')
-
-    meson_setup += [str(params['build_dir']), str(source_dir)]
-
-    if wipe or not build_ninja.is_file():
-        ret = subprocess.run(meson_setup, env=os.environ.update(compilers))
-        if ret.returncode:
-            raise SystemExit(ret.returncode)
-
-    ret = subprocess.run([ninja_exe, '-C', str(params['build_dir'])])
-
-    test_result(ret)
-
-    if params.get('do_test'):
-        if not ret.returncode:
-            ret = subprocess.run([meson_exe, 'test', '-C', str(params['build_dir'])])
-            if ret.returncode:
-                raise SystemExit(ret.returncode)
-
-    if params.get('install_dir'):
-        if not ret.returncode:
-            ret = subprocess.run([meson_exe, 'install', '-C', str(params['build_dir'])])
-            if ret.returncode:
-                raise SystemExit(ret.returncode)
+LANGS = ['c', 'cpp', 'fortran']
 
 
-def _needs_wipe(params: Dict[str, Any],
-                compilers: Dict[str, str],
-                wipe: bool, build_ninja: Path) -> bool:
-    """
-    https://mesonbuild.com/IDE-integration.html
-    """
-    if not build_ninja.is_file():
-        return False
+class Meson():
 
-    if wipe:
+    def __init__(self, params: Dict[str, Any] = {}, args: List[str] = []):
+
+        self.meson_exe = shutil.which('meson')
+        if not self.meson_exe:
+            raise ImportError('Meson executable not found')
+
+        self.ninja_exe = shutil.which('ninja')
+        if not self.ninja_exe:
+            raise ImportError('Ninja executable not found')
+
+        source_dir = params.get('source_dir', Path.cwd())
+        if not source_dir:
+            source_dir = Path.cwd()
+        self.source_dir = Path(source_dir).expanduser().resolve()
+
+        build_dir = params.get('build_dir', self.source_dir / 'build')
+        if not build_dir:
+            build_dir = self.source_dir / 'build'
+        self.build_dir = Path(build_dir).expanduser().resolve()
+
+        self.install_dir = params.get('install_dir')
+
+        self.do_test = params.get('do_test')
+
+        self.vendor = params.get('vendor')
+
+        self.compiler, compiler_args = get_compiler(self.vendor)
+
+        self.args = args
+        self.args += compiler_args
+
+    def config(self, wipe: bool):
+        """
+        attempt to build with Meson + Ninja
+        """
+
+        meson_build = self.source_dir / 'meson.build'
+
+        if not meson_build.is_file():
+            raise FileNotFoundError(meson_build)
+
+        meson_setup = [self.meson_exe] + ['setup'] + self.args
+
+        if self.install_dir:
+            meson_setup.append('--prefix '+str(Path(self.install_dir).expanduser()))
+
+        wipe = self.needs_wipe(wipe)
+        if wipe:
+            meson_setup.append('--wipe')
+
+        meson_setup += [str(self.build_dir), str(self.source_dir)]
+
+        if wipe or not (self.build_dir / 'build.ninja').is_file():
+            subprocess.check_call(meson_setup, env=os.environ.update(self.compiler))
+
+        self.build_test()
+
+        if self.install_dir:
+            subprocess.check_call([self.meson_exe, 'install', '-C', str(self.build_dir)])
+
+    def build_test(self):
+
+        if self.do_test:  # build and test
+            subprocess.check_call([self.meson_exe, 'test', '-C', str(self.build_dir)])
+        else:  # build only
+            subprocess.check_call([self.ninja_exe, '-C', str(self.build_dir)])
+
+    def needs_wipe(self, wipe: bool) -> bool:
+        """
+        https://mesonbuild.com/IDE-integration.html
+        """
+
+        if ((self.build_dir / 'meson-private/coredata.dat').is_file() and
+                not (self.build_dir / 'build.ninja').is_file()):
+            return True
+
+        if wipe:
+            return True
+
+        cache_fn = self.build_dir / 'meson-info' / 'intro-targets.json'
+        if not cache_fn.is_file():
+            return False
+        cache = json.loads(cache_fn.read_text())
+
+        if self.check_compiler_cache(cache):
+            return True
+
+        return wipe
+
+    def check_compiler_cache(self, cache: List[Dict[str, Any]]) -> bool:
+        compilers = self.get_compiler_cache(cache)
+
+        if set(compilers).intersection(self.compiler.values()):
+            return False
+
+        logging.info(f'Compiler changes from {compilers} => {self.compiler}')
         return True
 
-    api_dir = params['build_dir'] / 'meson-info'
-    cache_fn = api_dir / 'intro-targets.json'
-    cache = json.loads(cache_fn.read_text())
+    @staticmethod
+    def get_compiler_cache(cache: List[Dict[str, Any]]) -> List[str]:
+        compilers: List[str] = []
 
-    if _check_compiler_cache(compilers, cache, 'CC'):
-        return True
+        for target in cache:
+            for src in target['target_sources']:
+                if src['language'] in LANGS:
+                    compilers += src['compiler']
 
-    return wipe
-
-
-def _check_compiler_cache(compilers: Dict[str, str], cache: List[Dict[str, Any]], envvar: str) -> bool:
-    if envvar == 'CC':
-        lang = 'c'
-    elif envvar == 'CXX':
-        lang = 'cpp'
-    elif envvar == 'FC':
-        lang = 'fortran'
-    else:  # FIXME: other languages
-        return False
-
-    c = _get_compiler(cache, lang)
-
-    if c.startswith(str(compilers.get(envvar))):
-        logging.info(f'C compiler changes from {c} => {compilers[envvar]}')
-        return True
-
-    return False
-
-
-def _get_compiler(cache: List[Dict[str, Any]], language: str) -> str:
-    for target in cache:
-        for src in target['target_sources']:
-            if src['language'] == 'fortran':
-                compiler = src['compiler'][0]
-                break
-
-    return compiler
-
-
-def test_result(ret: subprocess.CompletedProcess):
-    if not ret.returncode:
-        print('\nBuild Complete!')
-    else:
-        raise SystemExit(ret.returncode)
+        return compilers
