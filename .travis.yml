@@ -11,8 +11,6 @@ python:
 - 3.7
 - 3.6
 
-# env: CMAKE_VER=3.14.5
-
 matrix:
   include:
   - os: linux
@@ -29,6 +27,13 @@ matrix:
 #    before_install:
 #    - choco install python3
 #    - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
+
+before_install:
+- mkdir -p ~/.local/bin
+- export PATH=$PATH:$HOME/.local/bin
+- wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip
+- unzip ninja-linux.zip -d ~/.local/bin
+- chmod +x ~/.local/bin/ninja
 
 install:
 - pip install -e .[tests,cov]
