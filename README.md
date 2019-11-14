@@ -6,6 +6,8 @@
 [![pypi versions](https://img.shields.io/pypi/pyversions/buildmc.svg)](https://pypi.python.org/pypi/buildmc)
 [![PyPi Download stats](http://pepy.tech/badge/buildmc)](http://pepy.tech/project/buildmc)
 
+Note: Meson native-files have built-in functionality that reduces the need for this program.
+
 # buildMC
 
 A pure Python program that makes building a large, complicated project using CMake or Meson just a single, simple command.
